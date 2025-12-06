@@ -175,7 +175,7 @@ body {
 }
 
 #event-log-panel {
-  grid-column: span 4;
+  grid-column: span 12;
 }
 
 #camera-panel {

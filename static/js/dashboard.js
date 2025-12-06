@@ -10,6 +10,7 @@
       }
       const A = window.EspressoApp;
       A.appendLog('Init dashboard...', 'info');
+      A.initBrewChart();
       A.initCharts();
       A.initSocket();
       A.initControls();

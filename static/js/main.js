@@ -15,8 +15,17 @@ let latestData = {};
 function appendLog(message, level = "info") {
   const logEl = document.getElementById("event-log");
   const ts = new Date().toISOString();
-  logEl.value += `[${ts}] [${level.toUpperCase()}] ${message}\n`;
-  logEl.scrollTop = logEl.scrollHeight;
+  const line = `[${ts}] [${level.toUpperCase()}] ${message}`;
+  if (logEl) {
+    try {
+      logEl.value += line + "\n";
+      logEl.scrollTop = logEl.scrollHeight;
+    } catch (e) {
+      console.log(line);
+    }
+  } else {
+    console.log(line);
+  }
 }
 
 function setWsStatus(connected) {
@@ -117,6 +126,8 @@ function initSocket() {
       if (msg.type === "data_update") {
         try {
           handleDataUpdate(msg.payload);
+          // Also feed combined brew chart
+          updateBrewChart(msg.payload);
         } catch (error) {
           console.error("Error processing data update:", error);
           appendLog(`Error processing data update: ${error.message}`, "error");
@@ -474,6 +485,61 @@ function updateCharts(data) {
   if (data.t1_in !== undefined) {
     pushData(chartTemp, data.t1_in, 'temperature');
   }
+}
+
+// ---------------------------------------------------------------------------
+// Live Brew Chart (single combined chart)
+// ---------------------------------------------------------------------------
+let brewChart = null;
+function initBrewChart() {
+  const canvas = document.getElementById('brew-chart');
+  if (!canvas || typeof Chart === 'undefined') {
+    appendLog('Brew chart unavailable (canvas/Chart.js missing)', 'warn');
+    return;
+  }
+  try {
+    brewChart = new Chart(canvas.getContext('2d'), {
+      type: 'line',
+      data: {
+        datasets: [
+          { label: 'Flow (ml/s)', data: [], borderColor: '#10b981', backgroundColor: 'rgba(16,185,129,0.1)', tension: 0.2, pointRadius: 0 },
+          { label: 'Grams', data: [], borderColor: '#22c55e', backgroundColor: 'rgba(34,197,94,0.1)', tension: 0.2, pointRadius: 0 },
+          { label: 'Pressure (bar)', data: [], borderColor: '#3b82f6', backgroundColor: 'rgba(59,130,246,0.1)', tension: 0.2, pointRadius: 0 },
+          { label: 'Temperature (°C)', data: [], borderColor: '#f59e0b', backgroundColor: 'rgba(245,158,11,0.1)', tension: 0.2, pointRadius: 0 },
+        ]
+      },
+      options: {
+        animation: false,
+        responsive: true,
+        maintainAspectRatio: false,
+        interaction: { intersect: false, mode: 'index' },
+        scales: {
+          x: { type: 'linear', position: 'bottom', ticks: { color: '#6b7280' }, grid: { color: 'rgba(55,65,81,0.3)' } },
+          y: { ticks: { color: '#6b7280' }, grid: { color: 'rgba(55,65,81,0.3)' } }
+        },
+        plugins: { legend: { display: true } }
+      }
+    });
+    appendLog('Brew chart initialized', 'info');
+  } catch (e) {
+    appendLog(`Brew chart init error: ${e.message}`, 'error');
+  }
+}
+
+function updateBrewChart(data) {
+  if (!brewChart || !data) return;
+  const t = data.ts !== undefined ? data.ts : Date.now();
+  const ds = brewChart.data.datasets;
+  const push = (idx, val) => {
+    if (val === undefined || val === null || isNaN(val)) return;
+    ds[idx].data.push({ x: t, y: Number(val) });
+    if (ds[idx].data.length > HISTORY_LENGTH) ds[idx].data.shift();
+  };
+  push(0, data.flow);
+  push(1, data.grams);
+  push(2, data.pressure);
+  push(3, data.t1_in);
+  try { brewChart.update('none'); } catch {}
 }
 
 // ---------------------------------------------------------------------------
@@ -852,6 +918,7 @@ function loadCurrentSettings() {
 // Expose initializers for other scripts
 window.EspressoApp = {
   initCharts,
+  initBrewChart,
   initSocket,
   initControls,
   initSettingsTab,

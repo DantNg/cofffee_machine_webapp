@@ -26,6 +26,7 @@ class SerialWorker(Thread):
         baudrate,
         on_packet,
         on_error,
+        on_raw_line=None,
         mock=False,
         read_timeout=0.1,
     ):
@@ -34,6 +35,7 @@ class SerialWorker(Thread):
         self.baudrate = baudrate
         self.on_packet = on_packet
         self.on_error = on_error
+        self.on_raw_line = on_raw_line
         self.mock = mock
         self.read_timeout = read_timeout
 
@@ -76,6 +78,13 @@ class SerialWorker(Thread):
                 decoded = line.decode("utf-8", errors="replace").strip()
                 if not decoded:
                     continue
+
+                # Broadcast raw line if handler provided
+                try:
+                    if self.on_raw_line:
+                        self.on_raw_line(decoded)
+                except Exception:
+                    pass
 
                 try:
                     packet = json.loads(decoded)

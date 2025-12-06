@@ -44,6 +44,8 @@ camera_source = None
 # COM port management
 available_ports = []
 serial_connected = False
+current_serial_port = SERIAL_PORT
+current_serial_baud = SERIAL_BAUD
 
 # Serial worker will be initialized after SocketIO
 serial_worker = None
@@ -88,6 +90,11 @@ def on_serial_error(line, error):
     Called when SerialWorker fails to parse a line as JSON.
     """
     log_event(f"Malformed JSON from serial: {line!r} ({error})", level="error")
+
+
+def on_serial_raw(line):
+    """Broadcast raw serial line to clients for Terminal Log display."""
+    socketio.emit("event_log", {"ts": datetime.utcnow().isoformat() + "Z", "level": "serial", "message": line})
 
 
 def validate_and_map_command(payload):
@@ -288,6 +295,67 @@ def download_log():
 
 
 # -----------------------------------------------------------------------------
+# Serial control REST endpoints
+# -----------------------------------------------------------------------------
+@app.route("/api/serial/ports", methods=["GET"])
+def list_serial_ports():
+    ports = [p.device for p in serial.tools.list_ports.comports()]
+    return jsonify(ports)
+
+
+@app.route("/api/serial/connect", methods=["POST"])
+def serial_connect():
+    global serial_worker, serial_connected, current_serial_port, current_serial_baud
+    data = None
+    try:
+        # Try standard Flask JSON parsing
+        from flask import request
+        data = request.get_json(silent=True) or {}
+    except Exception:
+        data = {}
+
+    port = data.get("port", SERIAL_PORT)
+    baud = int(data.get("baud", SERIAL_BAUD))
+
+    # Stop existing worker if any
+    try:
+        if serial_worker is not None:
+            serial_worker.stop()
+    except Exception:
+        pass
+
+    # Start new worker
+    serial_worker = SerialWorker(
+        port=port,
+        baudrate=baud,
+        on_packet=on_serial_packet,
+        on_error=on_serial_error,
+        mock=False,
+    )
+    serial_worker.start()
+
+    current_serial_port = port
+    current_serial_baud = baud
+    serial_connected = True
+    log_event(f"Serial connected on {port} @ {baud}", level="info")
+    return jsonify({"connected": True, "port": port, "baud": baud})
+
+
+@app.route("/api/serial/disconnect", methods=["POST"])
+def serial_disconnect():
+    global serial_worker, serial_connected
+    try:
+        if serial_worker is not None:
+            serial_worker.stop()
+            serial_worker = None
+        serial_connected = False
+        log_event("Serial disconnected", level="info")
+        return jsonify({"disconnected": True})
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+
+# -----------------------------------------------------------------------------
 # SocketIO Events
 # -----------------------------------------------------------------------------
 @socketio.on("connect")
@@ -367,6 +435,7 @@ if __name__ == "__main__":
         baudrate=SERIAL_BAUD,
         on_packet=on_serial_packet,
         on_error=on_serial_error,
+        on_raw_line=on_serial_raw,
         mock=MOCK_SERIAL,
     )
     serial_worker.start()
