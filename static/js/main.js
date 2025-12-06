@@ -1082,6 +1082,8 @@ function initHeaderSerialControls() {
             opt.textContent = p;
             portSel.appendChild(opt);
           });
+          // Require user to select a port before enabling Connect
+          btnConnect.disabled = !portSel.value;
           appendLog(`Ports refreshed: ${list.join(', ')}`);
         }
       })
@@ -1091,6 +1093,11 @@ function initHeaderSerialControls() {
   }
   loadPorts();
   if (btnRefresh) btnRefresh.addEventListener('click', loadPorts);
+
+  // Update Connect button enabled state when selection changes
+  portSel.addEventListener('change', () => {
+    btnConnect.disabled = !portSel.value;
+  });
 
   btnConnect.addEventListener('click', () => {
     const port = portSel.value;
@@ -1104,10 +1111,20 @@ function initHeaderSerialControls() {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ port, baud })
-    }).then(r => r.json()).then(res => {
+    }).then(r => {
+      if (!r.ok) throw new Error(`Connect failed: HTTP ${r.status}`);
+      return r.json();
+    }).then(res => {
       const ok = !!res.connected;
       setSerialHeaderStatus(ok);
       appendLog(ok ? `Serial connected: ${port} @ ${baud}` : `Serial connect failed`, ok ? 'info' : 'error');
+      if (ok) {
+        // Lock UI to reflect connected state
+        portSel.disabled = true;
+        baudSel.disabled = true;
+        btnConnect.disabled = true;
+        btnDisconnect.disabled = false;
+      }
     }).catch(() => {
       // Fallback to WebSocket command
       sendCommand({ cmd: 'SET_SYSTEM_SETTINGS', settings: { communication: { serial_port: port, baud_rate: baud } } });
@@ -1120,6 +1137,11 @@ function initHeaderSerialControls() {
       const ok = !!res.disconnected || !res.connected;
       setSerialHeaderStatus(false);
       appendLog('Serial disconnected', 'info');
+      // Unlock controls
+      portSel.disabled = false;
+      baudSel.disabled = false;
+      btnConnect.disabled = !portSel.value;
+      btnDisconnect.disabled = true;
     }).catch(() => {
       sendCommand({ cmd: 'SERIAL_DISCONNECT' });
       appendLog('Requested serial disconnect via command');
