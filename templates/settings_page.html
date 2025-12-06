@@ -1,0 +1,340 @@
+{% extends 'layout.html' %}
+
+{% block content %}
+<div id="settings-content" class="tab-content">
+  <div class="settings-container">
+    <h1>System Settings</h1>
+
+    <!-- Motor Settings -->
+    <section class="settings-section">
+      <h2>⚙️ Motor Settings</h2>
+      <div class="settings-group">
+        <h3>1. Pulse Speed / Frequency</h3>
+        <div class="settings-row">
+          <label>Base Frequency:</label>
+          <input type="number" id="motor-base-freq" min="1" max="10000" value="1000" />
+          <span class="unit">Hz</span>
+        </div>
+        <div class="settings-row">
+          <label>Max Frequency Allowed:</label>
+          <input type="number" id="motor-max-freq" min="1" max="20000" value="5000" />
+          <span class="unit">Hz</span>
+        </div>
+      </div>
+      <div class="settings-group">
+        <h3>2. Pulse Safety</h3>
+        <div class="settings-row">
+          <label>Max Pulses per Command:</label>
+          <input type="number" id="motor-max-pulses" min="1" max="10000" value="5000" />
+        </div>
+        <div class="settings-row">
+          <label>Max Batch Pulses:</label>
+          <input type="number" id="motor-max-batch" min="1" max="1000" value="500" />
+        </div>
+        <div class="settings-row">
+          <label>Emergency Stop Behavior:</label>
+          <select id="motor-emergency-behavior">
+            <option value="stop_valves_disable">Stop → Valves Off → Motor Disable</option>
+            <option value="immediate_stop">Immediate Stop</option>
+            <option value="controlled_stop">Controlled Deceleration</option>
+          </select>
+        </div>
+      </div>
+      <div class="settings-group">
+        <h3>3. Motor Direction</h3>
+        <div class="settings-row">
+          <label>
+            <input type="checkbox" id="motor-invert-direction" />
+            Invert Direction
+          </label>
+          <span class="help-text">Check if motor is installed in reverse</span>
+        </div>
+      </div>
+      <button id="apply-motor-settings" class="settings-btn primary">Apply Motor Settings</button>
+    </section>
+
+    <!-- Sensor Settings -->
+    <section class="settings-section">
+      <h2>📊 Sensor Settings</h2>
+      <div class="settings-group">
+        <h3>1. Calibration Values</h3>
+        <div class="calibration-grid">
+          <div class="cal-group">
+            <h4>Temperature Offsets</h4>
+            <label>Temp1 Offset: <input type="number" id="temp1-offset" step="0.1" value="0.0" /> °C</label>
+            <label>Temp2 Offset: <input type="number" id="temp2-offset" step="0.1" value="0.0" /> °C</label>
+            <label>Temp3 Offset: <input type="number" id="temp3-offset" step="0.1" value="0.0" /> °C</label>
+          </div>
+          <div class="cal-group">
+            <h4>Pressure Calibration</h4>
+            <label>Pressure Offset: <input type="number" id="pressure-offset" step="0.01" value="0.0" /> bar</label>
+            <label>Pressure Scale: <input type="number" id="pressure-scale" step="0.001" value="1.0" /></label>
+          </div>
+          <div class="cal-group">
+            <h4>Load Cell</h4>
+            <label>Calibration Factor: <input type="number" id="loadcell-factor" step="0.001" value="1.0" /> g/unit</label>
+          </div>
+        </div>
+      </div>
+      <div class="settings-group">
+        <h3>2. ADC Sampling</h3>
+        <div class="settings-row">
+          <label>Sensor Refresh Rate:</label>
+          <select id="sensor-refresh-rate">
+            <option value="1">1 ms</option>
+            <option value="2">2 ms</option>
+            <option value="5" selected>5 ms</option>
+            <option value="10">10 ms</option>
+          </select>
+        </div>
+        <div class="settings-row">
+          <label>Filter Type:</label>
+          <select id="sensor-filter-type">
+            <option value="none" selected>None</option>
+            <option value="moving_average">Moving Average</option>
+            <option value="low_pass">Low Pass Filter (LPF)</option>
+          </select>
+        </div>
+      </div>
+      <div class="settings-group">
+        <h3>3. Units Setting</h3>
+        <div class="settings-row">
+          <label>Temperature:</label>
+          <select id="temp-units">
+            <option value="celsius" selected>°C</option>
+            <option value="fahrenheit">°F</option>
+          </select>
+        </div>
+        <div class="settings-row">
+          <label>Pressure:</label>
+          <select id="pressure-units">
+            <option value="bar" selected>Bar</option>
+            <option value="psi">PSI</option>
+          </select>
+        </div>
+      </div>
+      <button id="apply-sensor-settings" class="settings-btn primary">Apply Sensor Settings</button>
+    </section>
+
+    <!-- Valve & Button Settings -->
+    <section class="settings-section">
+      <h2>🚰 Valve & Button Settings</h2>
+      <div class="settings-group">
+        <h3>1. Valve Polarity</h3>
+        <div class="valve-settings-grid">
+          <div class="valve-setting">
+            <label>
+              <input type="checkbox" id="valve1-invert" />
+              Valve 1 Invert (Active Low)
+            </label>
+          </div>
+          <div class="valve-setting">
+            <label>
+              <input type="checkbox" id="valve2-invert" />
+              Valve 2 Invert (Active Low)
+            </label>
+          </div>
+          <div class="valve-setting">
+            <label>
+              <input type="checkbox" id="valve3-invert" />
+              Valve 3 Invert (Active Low)
+            </label>
+          </div>
+        </div>
+      </div>
+      <div class="settings-group">
+        <h3>2. Button Debounce</h3>
+        <div class="settings-row">
+          <label>Debounce Time:</label>
+          <input type="number" id="button-debounce" min="1" max="1000" value="50" />
+          <span class="unit">ms</span>
+        </div>
+      </div>
+      <button id="apply-valve-button-settings" class="settings-btn primary">Apply Valve & Button Settings</button>
+    </section>
+
+    <!-- Limit Switch & Emergency Settings -->
+    <section class="settings-section">
+      <h2>🚨 Limit Switch & Emergency Settings</h2>
+      <div class="settings-group">
+        <h3>1. Limit Switch Behavior</h3>
+        <div class="settings-row">
+          <label>
+            <input type="checkbox" id="top-limit-emergency" />
+            Top Limit → Emergency Stop
+          </label>
+        </div>
+        <div class="settings-row">
+          <label>
+            <input type="checkbox" id="bottom-limit-emergency" />
+            Bottom Limit → Emergency Stop
+          </label>
+        </div>
+      </div>
+      <div class="settings-group">
+        <h3>2. Emergency Reset Mode</h3>
+        <div class="settings-row">
+          <label>
+            <input type="radio" name="emergency-reset" id="emergency-auto-reset" value="auto" />
+            Auto Reset after Release
+          </label>
+        </div>
+        <div class="settings-row">
+          <label>
+            <input type="radio" name="emergency-reset" id="emergency-manual-reset" value="manual" checked />
+            Manual Reset Only (Default)
+          </label>
+        </div>
+      </div>
+      <button id="apply-emergency-settings" class="settings-btn primary">Apply Emergency Settings</button>
+    </section>
+
+    <!-- COM Port & Serial Monitor -->
+    <section class="settings-section">
+      <h2>📡 COM Port & Serial Monitor</h2>
+      <div class="settings-group">
+        <h3>1. COM Port Connection</h3>
+        <div class="settings-row">
+          <label for="com-port-select">COM Port:</label>
+          <select id="com-port-select">
+            <option value="">Select COM Port</option>
+          </select>
+          <button id="refresh-com-ports" class="settings-btn">Refresh Ports</button>
+        </div>
+        <div class="settings-row">
+          <label for="com-baud-rate">Baud Rate:</label>
+          <select id="com-baud-rate">
+            <option value="9600">9600</option>
+            <option value="19200">19200</option>
+            <option value="38400">38400</option>
+            <option value="57600">57600</option>
+            <option value="115200" selected>115200</option>
+            <option value="230400">230400</option>
+            <option value="460800">460800</option>
+            <option value="921600">921600</option>
+          </select>
+        </div>
+        <div class="settings-row">
+          <div class="connection-status">
+            Serial Connection: <span id="serial-connection-status" class="status-dot status-disconnected">Disconnected</span>
+          </div>
+          <div class="connection-controls">
+            <button id="connect-serial" class="settings-btn primary">Connect</button>
+            <button id="disconnect-serial" class="settings-btn danger">Disconnect</button>
+          </div>
+        </div>
+      </div>
+      <div class="settings-group">
+        <h3>2. Serial Command Interface</h3>
+        <div class="command-interface">
+          <div class="command-input-group">
+            <label for="manual-command">Manual Command:</label>
+            <input id="manual-command" type="text" placeholder="Enter JSON command...">
+            <button id="send-manual-command" class="settings-btn">Send</button>
+          </div>
+          <div class="quick-commands">
+            <h4>Quick Commands:</h4>
+            <div class="quick-command-grid">
+              <button class="quick-cmd settings-btn" data-cmd='{"cmd": "GET_STATUS"}'>Get Status</button>
+              <button class="quick-cmd settings-btn" data-cmd='{"cmd": "STOP_MOTOR"}'>Stop Motor</button>
+              <button class="quick-cmd settings-btn" data-cmd='{"cmd": "RESET_COUNTERS"}'>Reset Counters</button>
+              <button class="quick-cmd settings-btn danger" data-cmd='{"cmd": "EMERGENCY_STOP"}'>Emergency Stop</button>
+              <button class="quick-cmd settings-btn" data-cmd='{"cmd": "VALVE_SET", "valve": 1, "state": 1}'>V1 ON</button>
+              <button class="quick-cmd settings-btn" data-cmd='{"cmd": "VALVE_SET", "valve": 1, "state": 0}'>V1 OFF</button>
+              <button class="quick-cmd settings-btn" data-cmd='{"cmd": "VALVE_SET", "valve": 2, "state": 1}'>V2 ON</button>
+              <button class="quick-cmd settings-btn" data-cmd='{"cmd": "VALVE_SET", "valve": 2, "state": 0}'>V2 OFF</button>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="settings-group">
+        <h3>3. Serial Monitor</h3>
+        <div class="monitor-controls">
+          <button id="clear-monitor" class="settings-btn">Clear</button>
+          <button id="save-monitor" class="settings-btn">Save Log</button>
+          <label class="checkbox-label">
+            <input id="auto-scroll-monitor" type="checkbox" checked> Auto Scroll
+          </label>
+          <label class="checkbox-label">
+            <input id="show-timestamps-monitor" type="checkbox" checked> Show Timestamps
+          </label>
+          <label class="checkbox-label">
+            <input id="show-raw-data" type="checkbox"> Show Raw Data
+          </label>
+        </div>
+        <div id="serial-monitor" class="serial-monitor">
+          <div class="monitor-placeholder">Serial data will appear here...</div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Logging & System Settings -->
+    <section class="settings-section">
+      <h2>📝 Logging & System Settings</h2>
+      <div class="settings-group">
+        <h3>1. Logging Settings</h3>
+        <div class="settings-row">
+          <label>
+            <input type="checkbox" id="csv-logging-enable" checked />
+            Enable CSV Logging
+          </label>
+        </div>
+        <div class="settings-row">
+          <label>Log Interval:</label>
+          <input type="number" id="log-interval" min="10" max="1000" value="100" />
+          <span class="unit">ms</span>
+        </div>
+        <div class="settings-row">
+          <label>Log Fields:</label>
+          <div class="log-fields-grid">
+            <label><input type="checkbox" id="log-pressure" checked /> Pressure</label>
+            <label><input type="checkbox" id="log-flow" checked /> Flow</label>
+            <label><input type="checkbox" id="log-grams" checked /> Grams</label>
+            <label><input type="checkbox" id="log-temperature" checked /> Temperature</label>
+            <label><input type="checkbox" id="log-pid" checked /> PID Outputs</label>
+            <label><input type="checkbox" id="log-motor" checked /> Motor Data</label>
+          </div>
+        </div>
+        <div class="settings-row">
+          <label>
+            <input type="checkbox" id="auto-split-log" />
+            Auto-split Log File per Session
+          </label>
+        </div>
+      </div>
+      <div class="settings-group">
+        <h3>2. WebSocket / Serial Settings</h3>
+        <div class="settings-row">
+          <label>Serial Port:</label>
+          <input type="text" id="serial-port" value="COM3" placeholder="e.g., COM3, /dev/ttyUSB0" />
+        </div>
+        <div class="settings-row">
+          <label>Baud Rate:</label>
+          <select id="serial-baudrate">
+            <option value="9600">9600</option>
+            <option value="19200">19200</option>
+            <option value="38400">38400</option>
+            <option value="57600">57600</option>
+            <option value="115200" selected>115200</option>
+            <option value="230400">230400</option>
+          </select>
+        </div>
+        <div class="settings-row">
+          <label>WebSocket Reconnect Timeout:</label>
+          <input type="number" id="ws-reconnect-timeout" min="1" max="60" value="5" />
+          <span class="unit">seconds</span>
+        </div>
+      </div>
+      <button id="apply-system-settings" class="settings-btn primary">Apply System Settings</button>
+    </section>
+
+    <!-- Settings Actions -->
+    <div class="settings-actions">
+      <button id="save-all-settings" class="settings-btn success">💾 Save All Settings</button>
+      <button id="load-default-settings" class="settings-btn warning">🔄 Load Defaults</button>
+      <button id="export-settings" class="settings-btn">📤 Export Settings</button>
+      <button id="import-settings" class="settings-btn">📥 Import Settings</button>
+    </div>
+  </div>
+</div>
+{% endblock %}

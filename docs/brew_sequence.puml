@@ -1,0 +1,138 @@
+@startuml
+' Espresso Rig Brew Sequence - High-level Flow
+
+title Espresso Rig Brew Sequence
+
+actor User as U
+participant "Controller (STM32)" as MCU
+participant "Valves (V1..V4)" as Valves
+participant "Motor + Encoder" as Motor
+participant "Sensors\nPressure, Temps, Load Cell" as Sensors
+participant "App (Flask/Web UI)" as App
+
+== Start & Positioning ==
+U -> App: Press Brew Button (BTN1)
+App -> MCU: Command: START_SEQUENCE
+
+activate MCU
+MCU -> Valves: Open V1 + V3, Close V2 + V4
+MCU -> Motor: Run CCW (negative) at 20 ml/s
+MCU -> Sensors: Read limit_top
+Sensors --> MCU: limit_top = 1 (triggered)
+MCU -> Motor: Stop
+MCU -> Motor: Zero pulse counter
+MCU -> Motor: Zero encoder counter
+
+== Fill Phase ==
+MCU -> Valves: Close V1 + V3, Open V2
+MCU -> Motor: Run CW (positive) at 20 ml/s
+loop Fill until (ml >= 180) OR (timeout 60s) OR (limit_bottom)
+  MCU -> Sensors: Read temps T1_IN, T1_OUT
+  MCU -> Sensors: Read limit_bottom
+  Sensors --> MCU: temps + limit_bottom
+  MCU -> Motor: Update ML_Filled from pulses (499 pulses/ml)
+end
+Motor -> MCU: Stop
+
+== Bleed Phase ==
+note over MCU
+Delay 200 ms
+end note
+MCU -> Valves: Close V2, Open V1 + V3
+MCU -> Motor: Run CCW at 20 ml/s (1s)
+note over MCU
+Subtract bled volume from total
+end note
+Motor -> MCU: Stop
+
+== Pressurization ==
+MCU -> Valves: Close V1, Open V3; ensure V2 + V4 closed
+MCU -> Motor: Run CCW at 12 ml/s
+loop Until pressure >= 2.5 bar
+  MCU -> Sensors: Read pressure every 5 ms (6-sample avg)
+  Sensors --> MCU: pressure
+end
+Motor -> MCU: Stop
+
+== Pre-brew Depressurization ==
+MCU -> Motor: Run CW briefly
+note over MCU
+Target ~2.5 bar (remove overshoot)
+end note
+Motor -> MCU: Stop
+
+== Load Cell Setup ==
+MCU -> Sensors: Tare load cell
+Sensors --> MCU: tare done
+MCU -> Sensors: Start weight streaming
+Sensors --> MCU: weight stream
+
+== Active Brewing ==
+MCU -> Valves: Open V3 + V4; Close V1 + V2
+MCU -> Motor: Velocity for target flow (e.g., 5 ml/s), CCW
+loop Sample every 10 ms
+  MCU -> Sensors: Read pressure (5 ms, rolling avg)
+  Sensors --> MCU: pressure
+  MCU -> Sensors: Read load cell weight
+  Sensors --> MCU: grams
+  MCU -> Motor: Update ml dispensed from pulses
+  MCU -> Sensors: Read encoder (display only)
+  MCU -> App: Log data every 100 ms
+  note right of App
+  ts, ml, grams, flow, pressure,
+  temps, pulses, encoder
+  end note
+end
+
+alt Normal Completion (weight >= target)
+  MCU -> Valves: Close V1, V2, V3, V4
+  MCU -> App: Log stabilization (1s)
+  note over MCU
+  Reset sequence counters
+  Update remaining cylinder volume
+  Return to Sequence 0
+  end note
+else Safety Abort
+  Sensors --> MCU: limit_bottom OR unexpected limit_top OR timeout
+  MCU -> Valves: Close all valves immediately
+  MCU -> Motor: Stop
+  note over MCU
+  Return to Sequence 0
+  end note
+end
+
+== Position Tracking ==
+note right of Motor
+Primary: Motor pulses
+Secondary: Encoder counts (display only)
+Conversion: 499 pulses/ml
+Direction:
+- Negative (CCW): increase pressure (piston up)
+- Positive (CW): decrease pressure (piston down)
+end note
+
+== Sensors Detail ==
+note over Sensors
+Temperature T1_IN/T1_OUT
+- Analog A10
+- B coeff 4016, RT01 100kΩ, R 7.41kΩ
+- Steinhart-Hart variant
+Pressure (Metallux ME900)
+- A15, Vrefint technique, VCC 5.08V
+- 0.5V (0 bar) .. 4.5V (20 bar)
+- 10k/22k divider + 100nF
+Load Cell: grams
+end note
+
+== Valves ==
+note over Valves
+V1: Drain/Bleed
+V2: Water Inlet
+V3: To Group Head
+V4: Output to Cup
+end note
+
+App -> U: Display real-time data, charts, logs
+
+deactivate MCU
+@enduml

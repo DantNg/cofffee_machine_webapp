@@ -1,0 +1,246 @@
+{% extends 'layout.html' %}
+
+{% block content %}
+<div id="dashboard-content" class="tab-content active">
+  <main class="main-grid">
+    <!-- Sensor panel -->
+    <section class="panel" id="sensor-panel">
+      <h2>Real-time Sensors</h2>
+      <div class="card-grid">
+        <div class="card">
+          <div class="card-label">Pressure</div>
+          <div class="card-value"><span id="pressure-val">--</span> bar</div>
+        </div>
+        <div class="card">
+          <div class="card-label">Flow</div>
+          <div class="card-value"><span id="flow-val">--</span> ml/s</div>
+        </div>
+        <div class="card">
+          <div class="card-label">Grams</div>
+          <div class="card-value"><span id="grams-val">--</span> g</div>
+        </div>
+        <div class="card">
+          <div class="card-label">T1 In</div>
+          <div class="card-value"><span id="t1-in-val">--</span> °C</div>
+        </div>
+        <div class="card">
+          <div class="card-label">T1 Out</div>
+          <div class="card-value"><span id="t1-out-val">--</span> °C</div>
+        </div>
+        <div class="card">
+          <div class="card-label">T Final</div>
+          <div class="card-value"><span id="t-final-val">--</span> °C</div>
+        </div>
+        <div class="card">
+          <div class="card-label">Potentiometer</div>
+          <div class="card-value"><span id="pot-val">--</span> %</div>
+        </div>
+      </div>
+    </section>
+        <!-- PID panel -->
+    <section class="panel" id="pid-panel">
+      <h2>PID Outputs</h2>
+      <div class="card-grid">
+        <div class="card small">
+          <div class="card-label">PID1</div>
+          <div class="card-value"><span id="pid1-val">--</span></div>
+        </div>
+        <div class="card small">
+          <div class="card-label">PID2</div>
+          <div class="card-value"><span id="pid2-val">--</span></div>
+        </div>
+        <div class="card small">
+          <div class="card-label">PID3</div>
+          <div class="card-value"><span id="pid3-val">--</span></div>
+        </div>
+      </div>
+    </section>
+     <!-- Valves & digital IO -->
+    <section class="panel" id="io-panel">
+      <h2>Valves & Digital IO</h2>
+      <div class="io-section">
+        <h3>Valves</h3>
+        <div class="button-row">
+          <button class="valve-toggle" data-valve="1">Valve 1</button>
+          <button class="valve-toggle" data-valve="2">Valve 2</button>
+          <button class="valve-toggle" data-valve="3">Valve 3</button>
+        </div>
+      </div>
+      <div class="io-section">
+        <h3>Limit Switches</h3>
+        <div class="indicator-row">
+          <div class="indicator">
+            <span class="indicator-dot" id="limit-top-dot"></span>Top
+          </div>
+          <div class="indicator">
+            <span class="indicator-dot" id="limit-bottom-dot"></span>Bottom
+          </div>
+        </div>
+      </div>
+      <div class="io-section">
+        <h3>Buttons</h3>
+        <div class="indicator-row">
+          <div class="indicator">
+            <span class="indicator-dot" id="btn1-dot"></span>BTN1
+          </div>
+          <div class="indicator">
+            <span class="indicator-dot" id="btn2-dot"></span>BTN2
+          </div>
+          <div class="indicator">
+            <span class="indicator-dot" id="btn3-dot"></span>BTN3
+          </div>
+        </div>
+      </div>
+      <div class="io-section">
+        <h3>LEDs</h3>
+        <div class="indicator-row">
+          <div class="indicator">
+            <span class="indicator-dot" id="led1-dot"></span>LED1
+          </div>
+          <div class="indicator">
+            <span class="indicator-dot" id="led2-dot"></span>LED2
+          </div>
+          <div class="indicator">
+            <span class="indicator-dot" id="led3-dot"></span>LED3
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Live Brew Charts (full width, row 2) -->
+    <section class="panel full-width" id="brew-charts-panel">
+      <h2>Live Brew Charts</h2>
+      <div class="brew-chart-header">
+        <div class="chart-info">
+          <span id="chart-recipe">Recipe: <span id="recipe-name">Fever</span></span>
+          <span id="chart-data-points">Data Points: <span id="data-points-count">155</span></span>
+          <span id="chart-weight">Weight: <span id="current-weight">29.38g</span></span>
+          <span id="chart-duration">Duration: <span id="brew-duration">33.60s</span></span>
+          <span id="chart-status">Status: <span id="brew-status">Recording</span></span>
+        </div>
+        <button id="clear-session" class="danger">Clear Session</button>
+      </div>
+      <div class="brew-chart-container">
+        <canvas id="brew-chart"></canvas>
+      </div>
+      <div class="chart-legend">
+        <div class="legend-item"><span class="legend-color flow-rate"></span>Flow Rate (ml/s)</div>
+        <div class="legend-item"><span class="legend-color grams-sec"></span>Grams/Sec (g/s)</div>
+        <div class="legend-item"><span class="legend-color target-p"></span>Target P (bar)</div>
+        <div class="legend-item"><span class="legend-color actual-p"></span>Actual P (bar)</div>
+        <div class="legend-item"><span class="legend-color resistance"></span>Resistance (ohms)</div>
+        <div class="legend-item"><span class="legend-color temperature"></span>Temperature (°C)</div>
+      </div>
+    </section>
+
+        <!-- Enhanced Camera panel -->
+    <section class="panel" id="camera-panel">
+      <h2>Camera Feed</h2>
+      <div class="camera-controls">
+        <div class="camera-source-group">
+          <label for="camera-source">Source:</label>
+          <select id="camera-source">
+            <option value="none">No Camera</option>
+            <option value="local">Local Camera</option>
+            <option value="ip">IP Camera</option>
+          </select>
+        </div>
+        <div class="camera-config" id="local-config" style="display: none;">
+          <label for="local-camera-select">Device:</label>
+          <select id="local-camera-select">
+            <option value="">Select Camera</option>
+          </select>
+        </div>
+        <div class="camera-config" id="ip-config" style="display: none;">
+          <label for="ip-camera-url">IP Camera URL:</label>
+          <input id="ip-camera-url" type="text" placeholder="http://192.168.1.100:8080/video">
+        </div>
+        <div class="camera-actions">
+          <button id="start-camera">Start</button>
+          <button id="stop-camera">Stop</button>
+          <button id="snapshot-camera">Snapshot</button>
+        </div>
+      </div>
+      <div class="camera-view">
+        <video id="camera-video" autoplay muted style="display: none;"></video>
+        <img id="camera-img" style="display: none;">
+        <div id="camera-placeholder" class="camera-placeholder">
+          <p>Select and start camera to view stream</p>
+          <p>Supports: Local USB cameras, IP cameras (MJPEG/HTTP streams)</p>
+        </div>
+      </div>
+    </section>
+    
+    <!-- Motor & encoder -->
+    <section class="panel" id="motor-panel">
+      <h2>Motor & Encoder</h2>
+      <div class="card-grid">
+        <div class="card small">
+          <div class="card-label">Pulses Batch</div>
+          <div class="card-value"><span id="pulses-batch-val">--</span></div>
+        </div>
+        <div class="card small">
+          <div class="card-label">Pulses Total</div>
+          <div class="card-value"><span id="pulses-total-val">--</span></div>
+        </div>
+        <div class="card small">
+          <div class="card-label">Encoder</div>
+          <div class="card-value"><span id="encoder-val">--</span></div>
+        </div>
+      </div>
+      <div class="control-group">
+        <label>Pulse count (1–5000):</label>
+        <input id="pulse-count-input" type="number" min="1" max="5000" value="1000" />
+        <div class="button-row">
+          <button id="btn-send-plus">Send +Pulses</button>
+          <button id="btn-send-minus">Send –Pulses</button>
+        </div>
+        <div class="button-row">
+          <button id="btn-start-motor">Start Motor</button>
+          <button id="btn-stop-motor" class="danger">Stop Motor</button>
+          <button id="btn-reset-counters">Reset Counters</button>
+        </div>
+        <div class="button-row">
+          <button id="btn-emergency" class="danger">EMERGENCY STOP</button>
+        </div>
+      </div>
+    </section>
+
+   
+    <!-- Charts panel -->
+    <section class="panel" id="charts-panel">
+      <h2>Real-time Charts</h2>
+      <div class="chart-grid">
+        <div class="chart-card">
+          <h3>Pressure</h3>
+          <canvas id="chart-pressure"></canvas>
+        </div>
+        <div class="chart-card">
+          <h3>Grams</h3>
+          <canvas id="chart-grams"></canvas>
+        </div>
+        <div class="chart-card">
+          <h3>Temperature (T1 In)</h3>
+          <canvas id="chart-temp"></canvas>
+        </div>
+      </div>
+    </section>
+
+    <!-- Event log -->
+    <section class="panel" id="event-log-panel">
+      <h2>Terminal Log</h2>
+      <div class="log-controls">
+        <button id="btn-start-logging">Start CSV Logging</button>
+        <button id="btn-stop-logging">Stop CSV Logging</button>
+        <a id="link-download-log" href="/api/logging/download" target="_blank">Download CSV</a>
+      </div>
+      <div class="log-container">
+        <textarea id="event-log" readonly></textarea>
+      </div>
+    </section>
+
+
+
+  </main>
+</div>
+{% endblock %}

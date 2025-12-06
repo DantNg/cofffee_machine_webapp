@@ -1,0 +1,64 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Espresso Rig Dashboard</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/styles.css') }}" />
+  <script src="https://cdn.socket.io/4.7.5/socket.io.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.js"></script>
+</head>
+<body>
+  <div class="app-container">
+    <header class="top-bar">
+      <div class="app-title">Espresso Piston Ball Crew</div>
+      <div class="nav-tabs">
+        <a href="/dashboard" id="tab-dashboard" class="nav-tab {{ 'active' if current_tab == 'dashboard' else '' }}">Dashboard</a>
+        <a href="/settings" id="tab-settings" class="nav-tab {{ 'active' if current_tab == 'settings' else '' }}">Settings</a>
+      </div>
+      <div class="status-group">
+        <div class="status-item">
+          Serial:
+          <span id="serial-header-status" class="status-dot status-disconnected">Disconnected</span>
+        </div>
+        <div class="status-item header-serial-controls">
+          <div class="serial-select-group">
+            <label for="header-com-port">COM:</label>
+            <select id="header-com-port">
+              <option value="">Select COM</option>
+            </select>
+            <button id="header-refresh-ports" title="Refresh COM list">⟳</button>
+          </div>
+          <div class="serial-baud-group">
+            <label for="header-baud-rate">Baud:</label>
+            <select id="header-baud-rate">
+              <option value="9600">9600</option>
+              <option value="19200">19200</option>
+              <option value="38400">38400</option>
+              <option value="57600">57600</option>
+              <option value="115200" selected>115200</option>
+              <option value="230400">230400</option>
+            </select>
+          </div>
+          <div class="serial-action-group">
+            <button id="header-connect-serial">Connect</button>
+            <button id="header-disconnect-serial" class="danger">Disconnect</button>
+          </div>
+        </div>
+        <div class="status-item">
+          Logging:
+          <span id="log-status" class="status-dot status-off">Off</span>
+        </div>
+      </div>
+    </header>
+
+    <div class="content-container">
+      {% block content %}{% endblock %}
+    </div>
+  </div>
+
+  <script src="{{ url_for('static', filename='js/main.js') }}"></script>
+  <script src="{{ url_for('static', filename='js/dashboard.js') }}"></script>
+  <script src="{{ url_for('static', filename='js/settings.js') }}"></script>
+</body>
+</html>
