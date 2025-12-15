@@ -26,7 +26,7 @@ def _load_schema() -> Dict[str, Any]:
     return _SCHEMA
 
 
-def _derive_fields(schema: Dict[str, Any]) -> (List[str], Dict[str, Any]):
+def _derive_fields(schema: Dict[str, Any]) -> tuple[List[str], Dict[str, Any]]:
     fields = []
     defaults: Dict[str, Any] = {}
     try:
