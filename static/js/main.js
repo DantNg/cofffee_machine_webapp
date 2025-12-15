@@ -11,6 +11,7 @@ const CONNECTION_RETRY_INTERVAL = 2000; // Retry connection every 2 seconds
 
 // Store last data for debug
 let latestData = {};
+let AppSchema = null;
 
 function appendLog(message, level = "info") {
   const logEl = document.getElementById("event-log");
@@ -152,6 +153,54 @@ function initSocket() {
 }
 
 // ---------------------------------------------------------------------------
+// Load shared schema
+// ---------------------------------------------------------------------------
+function loadAppSchema() {
+  return fetch('/static/schema/schema.json')
+    .then(r => r.ok ? r.json() : null)
+    .then(json => { AppSchema = json; try{ window.AppSchemaGetter = getSchemaParam; }catch(_){} return json; })
+    .catch(() => null);
+}
+
+function getSchemaParam(cmd, param) {
+  try {
+    return AppSchema && AppSchema.commands && AppSchema.commands[cmd] && AppSchema.commands[cmd].params && AppSchema.commands[cmd].params[param];
+  } catch (_) { return null; }
+}
+
+function resolveCmdName(alias) {
+  try {
+    if (!alias) return alias;
+    const aliases = AppSchema && AppSchema.aliases;
+    if (aliases && Object.prototype.hasOwnProperty.call(aliases, alias)) {
+      return aliases[alias] || alias;
+    }
+    return alias;
+  } catch(_) { return alias; }
+}
+
+// ---------------------------------------------------------------------------
+// Initial serial logs loader
+// ---------------------------------------------------------------------------
+function loadRecentSerialLogs(count = 200) {
+  try {
+    fetch(`/api/serial/logs?count=${encodeURIComponent(count)}`)
+      .then(r => r.ok ? r.json() : { logs: [] })
+      .then(res => {
+        const logs = Array.isArray(res.logs) ? res.logs : [];
+        logs.forEach(entry => {
+          if (!entry) return;
+          const msg = entry.line || entry.message || '';
+          if (msg) appendLog(msg, 'serial');
+        });
+      })
+      .catch(() => {});
+  } catch (e) {
+    // noop
+  }
+}
+
+// ---------------------------------------------------------------------------
 // Data update handling
 // ---------------------------------------------------------------------------
 function handleDataUpdate(data) {
@@ -231,9 +280,13 @@ function sendCommand(payload) {
     appendLog("Cannot send command: WebSocket not connected", "error");
     return;
   }
+  const out = { ...(payload || {}) };
+  if (out && typeof out.cmd === 'string') {
+    out.cmd = resolveCmdName(out.cmd);
+  }
   const msg = {
     type: "command",
-    payload: payload,
+    payload: out,
   };
   socket.emit("message", msg);
 }
@@ -242,21 +295,38 @@ function initControls() {
   // Pulses
   const pulseInput = document.getElementById("pulse-count-input");
   document.getElementById("btn-send-plus").addEventListener("click", () => {
-    const count = parseInt(pulseInput.value, 10) || 0;
+    let count = parseInt(pulseInput.value, 10) || 0;
+    const rule = getSchemaParam('SEND_PULSES', 'count');
+    if (rule) {
+      const min = typeof rule.min === 'number' ? rule.min : 1;
+      const max = typeof rule.max === 'number' ? rule.max : 5000;
+      count = Math.min(Math.max(count, min), max);
+    }
     sendCommand({ cmd: "SEND_PULSES", direction: "+", count });
     appendLog(`SEND_PULSES +${count}`);
   });
 
   document.getElementById("btn-send-minus").addEventListener("click", () => {
-    const count = parseInt(pulseInput.value, 10) || 0;
+    let count = parseInt(pulseInput.value, 10) || 0;
+    const rule = getSchemaParam('SEND_PULSES', 'count');
+    if (rule) {
+      const min = typeof rule.min === 'number' ? rule.min : 1;
+      const max = typeof rule.max === 'number' ? rule.max : 5000;
+      count = Math.min(Math.max(count, min), max);
+    }
     sendCommand({ cmd: "SEND_PULSES", direction: "-", count });
     appendLog(`SEND_PULSES -${count}`);
   });
 
   // Motor
   document.getElementById("btn-start-motor").addEventListener("click", () => {
-    sendCommand({ cmd: "SEND_PULSES", direction: "+", count: 0 }); // or your own START command
-    appendLog("Start motor command sent");
+    // Use a minimal valid count from schema for start
+    const rule = getSchemaParam('SEND_PULSES', 'count');
+    const min = rule && typeof rule.min === 'number' ? rule.min : 1;
+    const count = parseInt(pulseInput.value, 10) || min;
+    const clamped = Math.max(count, min);
+    sendCommand({ cmd: "SEND_PULSES", direction: "+", count: clamped });
+    appendLog(`Start motor: SEND_PULSES +${clamped}`);
   });
 
   document.getElementById("btn-stop-motor").addEventListener("click", () => {
@@ -774,21 +844,35 @@ function applySystemSettings() {
     }
   };
 
-  sendCommand({
-    cmd: "SET_SYSTEM_SETTINGS",
-    settings: settings
-  });
-  appendLog(`System settings applied: Port=${settings.communication.serial_port}, Baud=${settings.communication.baud_rate}`);
+  // Send via WebSocket for live devices
+  sendCommand({ cmd: "SET_SYSTEM_SETTINGS", settings });
+  // Also persist/apply via REST to config worker
+  try {
+    fetch('/api/config/apply', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(settings)
+    }).then(r => r.json()).then(() => {
+      appendLog(`System settings applied: Port=${settings.communication.serial_port}, Baud=${settings.communication.baud_rate}`);
+    }).catch(() => {
+      // ignore REST errors here; WS command may still succeed
+    });
+  } catch (_) {}
 }
 
 // Global Settings Actions
 function saveAllSettings() {
   const allSettings = gatherAllSettings();
   
-  sendCommand({
-    cmd: "SAVE_ALL_SETTINGS",
-    settings: allSettings
-  });
+  sendCommand({ cmd: "SAVE_ALL_SETTINGS", settings: allSettings });
+  // Also send full config to server to apply/persist
+  try {
+    fetch('/api/config/apply', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(allSettings)
+    }).catch(() => {});
+  } catch (_) {}
   
   // Also save to localStorage for persistence
   localStorage.setItem('espresso_settings', JSON.stringify(allSettings));
@@ -924,6 +1008,9 @@ window.EspressoApp = {
   initSettingsTab,
   initCameraControls,
   initHeaderSerialControls,
+  loadAppSchema,
+  getSchemaParam,
+   loadRecentSerialLogs,
   appendLog
 };
 

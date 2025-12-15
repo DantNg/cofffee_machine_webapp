@@ -2,13 +2,16 @@ import os
 import json
 from threading import Lock
 from datetime import datetime
+from typing import Optional
 import serial.tools.list_ports
 # import cv2  # Temporarily disabled due to NumPy compatibility issues
 from flask import Flask, render_template, jsonify, send_file, Response, redirect, url_for
 from flask_socketio import SocketIO, emit
 
-from serial_worker import SerialWorker
-from logging_utils import CsvLogger
+from workers.serial_worker import SerialWorker
+from workers.logging_worker import LoggingWorker
+from workers.data_processing_worker import DataProcessingWorker
+from workers.config_worker import ConfigWorker
 
 # -----------------------------------------------------------------------------
 # Configuration
@@ -30,10 +33,11 @@ app.config["SECRET_KEY"] = os.environ.get("SECRET_KEY", "development-secret")
 socketio = SocketIO(app, cors_allowed_origins="*", async_mode="threading")
 
 
-# Globals for logger
+# Workers and logging state
 logger_lock = Lock()
-csv_logger = None
-logging_enabled = False
+logging_worker: Optional[LoggingWorker] = None
+data_worker: Optional[DataProcessingWorker] = None
+config_worker: Optional[ConfigWorker] = None
 
 # Camera management
 camera = None
@@ -65,24 +69,14 @@ def log_event(message, level="info"):
 
 def on_serial_packet(packet):
     """
-    Callback from SerialWorker with a parsed JSON dict from the STM32.
-    Broadcast to all clients and optionally log to CSV.
+    Callback for processed/normalized packet from MCU (can be wired directly
+    from SerialWorker or via DataProcessingWorker).
     """
-    global csv_logger, logging_enabled
-
-    # Envelope for frontend
-    msg = {
-        "type": "data_update",
-        "payload": packet,
-    }
-    socketio.emit("message", msg)
-
-    # Optional CSV logging
-    if logging_enabled and csv_logger is not None:
-        try:
-            csv_logger.append(packet)
-        except Exception as e:
-            log_event(f"CSV logging error: {e}", level="error")
+    # Broadcast to UI
+    socketio.emit("message", {"type": "data_update", "payload": packet})
+    # Forward to logging worker (CSV)
+    if logging_worker is not None:
+        logging_worker.append_packet(packet)
 
 
 def on_serial_error(line, error):
@@ -93,150 +87,19 @@ def on_serial_error(line, error):
 
 
 def on_serial_raw(line):
-    """Broadcast raw serial line to clients for Terminal Log display."""
-    socketio.emit("event_log", {"ts": datetime.utcnow().isoformat() + "Z", "level": "serial", "message": line})
-
-
-def validate_and_map_command(payload):
-    """
-    Validate and map incoming command from frontend to
-    JSON dict to send over serial.
-
-    Frontend sends:
-    {
-      "cmd": "SEND_PULSES",
-      "direction": "+",
-      "count": 3000
-    }
-
-    For now, we just validate and pass the payload through.
-    In the future, you can map to STM32-specific keys/structure here.
-    """
-    if not isinstance(payload, dict):
-        raise ValueError("Command payload must be a JSON object")
-
-    cmd = payload.get("cmd")
-    if not cmd:
-        raise ValueError("Command payload missing 'cmd'")
-
-    if cmd == "SEND_PULSES":
-        direction = payload.get("direction")
-        count = payload.get("count")
-        if direction not in ["+", "-"]:
-            raise ValueError("direction must be '+' or '-'")
-        if not isinstance(count, int) or not (1 <= count <= 5000):
-            raise ValueError("count must be int in [1,5000]")
-        # pass-through OK
-
-    elif cmd == "STOP_MOTOR":
-        pass
-
-    elif cmd == "VALVE_SET":
-        valve = payload.get("valve")
-        state = payload.get("state")
-        if not isinstance(valve, int) or valve < 0:
-            raise ValueError("valve must be a non-negative integer")
-        if state not in [0, 1]:
-            raise ValueError("state must be 0 or 1")
-
-    elif cmd == "RESET_COUNTERS":
-        pass
-
-    elif cmd == "EMERGENCY_STOP":
-        pass
-
-    # PID Settings Commands
-    elif cmd == "SET_PID_SETPOINTS":
-        setpoints = payload.get("setpoints")
-        if not isinstance(setpoints, dict):
-            raise ValueError("setpoints must be a dict")
-        # Validate setpoint values
-        for key in ["pid1", "pid2", "pid3"]:
-            if key not in setpoints or not isinstance(setpoints[key], (int, float)):
-                raise ValueError(f"setpoints.{key} must be a number")
-
-    elif cmd == "SET_PID_GAINS":
-        gains = payload.get("gains")
-        if not isinstance(gains, dict):
-            raise ValueError("gains must be a dict")
-        for pid_key in ["pid1", "pid2", "pid3"]:
-            if pid_key not in gains or not isinstance(gains[pid_key], dict):
-                raise ValueError(f"gains.{pid_key} must be a dict")
-            for gain_key in ["kp", "ki", "kd"]:
-                if gain_key not in gains[pid_key]:
-                    raise ValueError(f"gains.{pid_key}.{gain_key} is required")
-
-    elif cmd == "SET_PID_LIMITS":
-        limits = payload.get("limits")
-        if not isinstance(limits, dict):
-            raise ValueError("limits must be a dict")
-        required_keys = ["output_max", "output_min", "windup_clamp"]
-        for key in required_keys:
-            if key not in limits:
-                raise ValueError(f"limits.{key} is required")
-
-    elif cmd == "SET_PID_SAMPLE_TIME":
-        sample_time = payload.get("sample_time")
-        if not isinstance(sample_time, int) or sample_time < 1:
-            raise ValueError("sample_time must be a positive integer")
-
-    # Motor Settings Commands
-    elif cmd == "SET_MOTOR_SETTINGS":
-        settings = payload.get("settings")
-        if not isinstance(settings, dict):
-            raise ValueError("motor settings must be a dict")
-
-    # Sensor Settings Commands
-    elif cmd == "SET_SENSOR_SETTINGS":
-        settings = payload.get("settings")
-        if not isinstance(settings, dict):
-            raise ValueError("sensor settings must be a dict")
-
-    # Valve & Button Settings Commands
-    elif cmd == "SET_VALVE_BUTTON_SETTINGS":
-        settings = payload.get("settings")
-        if not isinstance(settings, dict):
-            raise ValueError("valve/button settings must be a dict")
-
-    # Emergency Settings Commands
-    elif cmd == "SET_EMERGENCY_SETTINGS":
-        settings = payload.get("settings")
-        if not isinstance(settings, dict):
-            raise ValueError("emergency settings must be a dict")
-
-    # System Settings Commands
-    elif cmd == "SET_SYSTEM_SETTINGS":
-        settings = payload.get("settings")
-        if not isinstance(settings, dict):
-            raise ValueError("system settings must be a dict")
-
-    # Global Settings Commands
-    elif cmd == "SAVE_ALL_SETTINGS":
-        settings = payload.get("settings")
-        if not isinstance(settings, dict):
-            raise ValueError("all settings must be a dict")
-
-    elif cmd == "LOAD_DEFAULT_SETTINGS":
-        pass
-
+    """Raw serial line listener: forward to logging worker and UI terminal."""
+    if logging_worker is not None:
+        logging_worker.on_raw_line(line)
     else:
-        raise ValueError(f"Unknown cmd: {cmd}")
-
-    # If you need a different schema for STM32, transform here.
-    # For now, we just send payload as-is.
-    return payload
+        socketio.emit("event_log", {"ts": datetime.utcnow().isoformat() + "Z", "level": "serial", "message": line})
 
 
-def ensure_logger():
-    """
-    Create CsvLogger instance if needed.
-    """
-    global csv_logger
-    if csv_logger is None:
-        filename = datetime.utcnow().strftime("espresso_log_%Y%m%d_%H%M%S.csv")
-        path = os.path.join(LOG_DIR, filename)
-        csv_logger = CsvLogger(path)
-    return csv_logger
+from schema.schema import validate_and_map_command
+
+
+def ensure_log_file_path():
+    filename = datetime.utcnow().strftime("espresso_log_%Y%m%d_%H%M%S.csv")
+    return os.path.join(LOG_DIR, filename)
 
 
 # -----------------------------------------------------------------------------
@@ -260,38 +123,70 @@ def settings():
 
 @app.route("/api/logging/start", methods=["POST"])
 def start_logging():
-    global logging_enabled
-
+    global logging_worker
     with logger_lock:
-        ensure_logger()
-        csv_logger.start()
-        logging_enabled = True
+        if logging_worker is None:
+            return jsonify({"error": "Logging worker not ready"}), 503
+        path = ensure_log_file_path()
+        logging_worker.start_csv(path)
         log_event("CSV logging started", level="info")
-        return jsonify({"status": "ok", "logging": True})
+        return jsonify({"status": "ok", "logging": True, "file": path})
 
 
 @app.route("/api/logging/stop", methods=["POST"])
 def stop_logging():
-    global logging_enabled, csv_logger
-
+    global logging_worker
     with logger_lock:
-        if csv_logger is not None:
-            csv_logger.stop()
-        logging_enabled = False
+        if logging_worker is not None:
+            logging_worker.stop_csv()
         log_event("CSV logging stopped", level="info")
         return jsonify({"status": "ok", "logging": False})
 
 
 @app.route("/api/logging/status", methods=["GET"])
 def logging_status():
-    return jsonify({"logging": logging_enabled})
+    if logging_worker is None:
+        return jsonify({"logging": False})
+    st = logging_worker.status()
+    return jsonify({"logging": st["enabled"], "file": st["file_path"]})
 
 
 @app.route("/api/logging/download", methods=["GET"])
 def download_log():
-    if csv_logger is None or csv_logger.file_path is None:
+    if logging_worker is None or logging_worker.csv_logger is None:
         return jsonify({"error": "No log file available"}), 404
-    return send_file(csv_logger.file_path, as_attachment=True)
+    return send_file(logging_worker.csv_logger.file_path, as_attachment=True)
+
+@app.route("/api/serial/logs", methods=["GET"])
+def get_serial_logs():
+    count = 200
+    try:
+        from flask import request
+        count = int(request.args.get("count", count))
+    except Exception:
+        pass
+    if logging_worker is None:
+        return jsonify({"logs": []})
+    return jsonify({"logs": logging_worker.get_recent_logs(count)})
+
+
+@app.route("/api/config/apply", methods=["POST"])
+def apply_config():
+    """Apply configuration payload to MCU via ConfigWorker."""
+    global config_worker
+    try:
+        from flask import request
+        payload = request.get_json(silent=True) or {}
+    except Exception:
+        payload = {}
+    if not isinstance(payload, dict):
+        return jsonify({"error": "Invalid JSON"}), 400
+    if config_worker is None:
+        return jsonify({"error": "Config worker not ready"}), 503
+    ok = config_worker.apply_config(payload)
+    if not ok:
+        return jsonify({"error": "Failed to apply config"}), 500
+    return jsonify({"status": "ok"})
 
 
 # -----------------------------------------------------------------------------
@@ -328,8 +223,9 @@ def serial_connect():
     serial_worker = SerialWorker(
         port=port,
         baudrate=baud,
-        on_packet=on_serial_packet,
+        on_packet=data_worker.on_packet if data_worker is not None else on_serial_packet,
         on_error=on_serial_error,
+        on_raw_line=on_serial_raw,
         mock=False,
     )
     serial_worker.start()
@@ -383,7 +279,7 @@ def handle_message(msg):
       "payload": { "action": "START" | "STOP" }
     }
     """
-    global logging_enabled, csv_logger
+    global logging_worker
 
     if not isinstance(msg, dict):
         emit("error", {"message": "Invalid message format"})
@@ -407,19 +303,19 @@ def handle_message(msg):
     elif mtype == "logging_control":
         action = payload.get("action")
         with logger_lock:
+            if logging_worker is None:
+                emit("error", {"message": "Logging worker not ready"})
+                return
             if action == "START":
-                ensure_logger()
-                csv_logger.start()
-                logging_enabled = True
+                path = ensure_log_file_path()
+                logging_worker.start_csv(path)
                 log_event("CSV logging started via WebSocket", level="info")
             elif action == "STOP":
-                if csv_logger is not None:
-                    csv_logger.stop()
-                logging_enabled = False
+                logging_worker.stop_csv()
                 log_event("CSV logging stopped via WebSocket", level="info")
             else:
                 emit("error", {"message": "Unknown logging action"})
-        emit("logging_status", {"logging": logging_enabled}, broadcast=True)
+        emit("logging_status", {"logging": logging_worker.logging_enabled if logging_worker else False}, broadcast=True)
 
     else:
         emit("error", {"message": f"Unknown message type: {mtype}"})
@@ -429,21 +325,28 @@ def handle_message(msg):
 # Main entry point
 # -----------------------------------------------------------------------------
 if __name__ == "__main__":
-    # Initialize SerialWorker with callbacks
-    serial_worker = SerialWorker(
-        port=SERIAL_PORT,
-        baudrate=SERIAL_BAUD,
-        on_packet=on_serial_packet,
-        on_error=on_serial_error,
-        on_raw_line=on_serial_raw,
-        mock=MOCK_SERIAL,
-    )
-    serial_worker.start()
+    # Initialize workers
+    logging_worker = LoggingWorker(socketio)
+    data_worker = DataProcessingWorker(on_parsed=on_serial_packet, socketio=socketio)
+    config_worker = ConfigWorker(lambda: serial_worker)
 
-    log_event(
-        f"Serial worker started on port={SERIAL_PORT} baud={SERIAL_BAUD}, mock={MOCK_SERIAL}",
-        level="info",
-    )
+    # Start in mock mode only; otherwise wait for manual connect from UI
+    if MOCK_SERIAL:
+        serial_worker = SerialWorker(
+            port=SERIAL_PORT,
+            baudrate=SERIAL_BAUD,
+            on_packet=data_worker.on_packet,
+            on_error=on_serial_error,
+            on_raw_line=on_serial_raw,
+            mock=True,
+        )
+        serial_worker.start()
+        log_event(
+            f"Serial worker started in MOCK mode (baud={SERIAL_BAUD})",
+            level="info",
+        )
+    else:
+        log_event("Waiting for manual serial connect from UI...", level="info")
 
     # Run SocketIO (this wraps Flask run)
     # Use host='0.0.0.0' if you want to expose on LAN/RPi.

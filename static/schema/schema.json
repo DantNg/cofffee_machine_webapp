@@ -1,0 +1,107 @@
+{
+  "version": "1.0.0",
+  "data": {
+    "fields": [
+      { "name": "ts", "type": "number", "default": null },
+      { "name": "pressure", "type": "number", "default": null },
+      { "name": "flow", "type": "number", "default": null },
+      { "name": "grams", "type": "number", "default": null },
+      { "name": "t1_in", "type": "number", "default": null },
+      { "name": "t1_out", "type": "number", "default": null },
+      { "name": "t_final", "type": "number", "default": null },
+      { "name": "pot", "type": "number", "default": null },
+      { "name": "pulses_batch", "type": "integer", "default": 0 },
+      { "name": "pulses_total", "type": "integer", "default": 0 },
+      { "name": "encoder", "type": "integer", "default": 0 },
+      { "name": "limit_top", "type": "integer", "default": 0 },
+      { "name": "limit_bottom", "type": "integer", "default": 0 },
+      { "name": "btn1", "type": "integer", "default": 0 },
+      { "name": "btn2", "type": "integer", "default": 0 },
+      { "name": "btn3", "type": "integer", "default": 0 },
+      { "name": "led1", "type": "integer", "default": 0 },
+      { "name": "led2", "type": "integer", "default": 0 },
+      { "name": "led3", "type": "integer", "default": 0 },
+      { "name": "pid1", "type": "number", "default": null },
+      { "name": "pid2", "type": "number", "default": null },
+      { "name": "pid3", "type": "number", "default": null },
+      { "name": "emergency", "type": "integer", "default": 0 }
+    ]
+  },
+  "aliases": {
+    "SEND_PULSES": "SEND_PULSES1",
+    "STOP_MOTOR": "STOP_MOTOR",
+    "VALVE_SET": "VALVE_SET",
+    "RESET_COUNTERS": "RESET_COUNTERS",
+    "EMERGENCY_STOP": "EMERGENCY_STOP",
+    "SET_PID_SETPOINTS": "SET_PID_SETPOINTS",
+    "SET_PID_GAINS": "SET_PID_GAINS",
+    "SET_PID_LIMITS": "SET_PID_LIMITS",
+    "SET_PID_SAMPLE_TIME": "SET_PID_SAMPLE_TIME",
+    "SET_MOTOR_SETTINGS": "SET_MOTOR_SETTINGS",
+    "SET_SENSOR_SETTINGS": "SET_SENSOR_SETTINGS",
+    "SET_VALVE_BUTTON_SETTINGS": "SET_VALVE_BUTTON_SETTINGS",
+    "SET_EMERGENCY_SETTINGS": "SET_EMERGENCY_SETTINGS",
+    "SET_SYSTEM_SETTINGS": "SET_SYSTEM_SETTINGS",
+    "SAVE_ALL_SETTINGS": "SAVE_ALL_SETTINGS",
+    "LOAD_DEFAULT_SETTINGS": "LOAD_DEFAULT_SETTINGS"
+  },
+  "commands": {
+    "SEND_PULSES": {
+      "params": {
+        "direction": { "type": "string", "enum": ["+", "-"] },
+        "count": { "type": "integer", "min": 1, "max": 5000 }
+      },
+      "mcu": { "name": "SEND_PULSES", "param_map": {} }
+    },
+    "STOP_MOTOR": { "params": {}, "mcu": { "name": "STOP_MOTOR", "param_map": {} } },
+    "VALVE_SET": {
+      "params": {
+        "valve": { "type": "integer", "min": 0 },
+        "state": { "type": "integer", "enum": [0, 1] }
+      },
+      "mcu": { "name": "VALVE_SET", "param_map": {} }
+    },
+    "RESET_COUNTERS": { "params": {}, "mcu": { "name": "RESET_COUNTERS", "param_map": {} } },
+    "EMERGENCY_STOP": { "params": {}, "mcu": { "name": "EMERGENCY_STOP", "param_map": {} } },
+    "SET_PID_SETPOINTS": {
+      "params": {
+        "setpoints": {
+          "type": "object",
+          "properties": {
+            "pid1": { "type": "number" },
+            "pid2": { "type": "number" },
+            "pid3": { "type": "number" }
+          }
+        }
+      },
+      "mcu": { "name": "SET_PID_SETPOINTS", "param_map": {} }
+    },
+    "SET_PID_GAINS": {
+      "params": {
+        "gains": {
+          "type": "object",
+          "properties": {
+            "pid1": { "type": "object", "properties": { "kp": {"type": "number"}, "ki": {"type": "number"}, "kd": {"type": "number"} } },
+            "pid2": { "type": "object", "properties": { "kp": {"type": "number"}, "ki": {"type": "number"}, "kd": {"type": "number"} } },
+            "pid3": { "type": "object", "properties": { "kp": {"type": "number"}, "ki": {"type": "number"}, "kd": {"type": "number"} } }
+          }
+        }
+      },
+      "mcu": { "name": "SET_PID_GAINS", "param_map": {} }
+    },
+    "SET_PID_LIMITS": {
+      "params": {
+        "limits": { "type": "object", "properties": { "output_max": {"type": "integer"}, "output_min": {"type": "integer"}, "windup_clamp": {"type": "integer"} } }
+      },
+      "mcu": { "name": "SET_PID_LIMITS", "param_map": {} }
+    },
+    "SET_PID_SAMPLE_TIME": { "params": { "sample_time": { "type": "integer", "min": 1 } }, "mcu": { "name": "SET_PID_SAMPLE_TIME", "param_map": {} } },
+    "SET_MOTOR_SETTINGS": { "params": { "settings": { "type": "object" } }, "mcu": { "name": "SET_MOTOR_SETTINGS", "param_map": {} } },
+    "SET_SENSOR_SETTINGS": { "params": { "settings": { "type": "object" } }, "mcu": { "name": "SET_SENSOR_SETTINGS", "param_map": {} } },
+    "SET_VALVE_BUTTON_SETTINGS": { "params": { "settings": { "type": "object" } }, "mcu": { "name": "SET_VALVE_BUTTON_SETTINGS", "param_map": {} } },
+    "SET_EMERGENCY_SETTINGS": { "params": { "settings": { "type": "object" } }, "mcu": { "name": "SET_EMERGENCY_SETTINGS", "param_map": {} } },
+    "SET_SYSTEM_SETTINGS": { "params": { "settings": { "type": "object" } }, "mcu": { "name": "SET_SYSTEM_SETTINGS", "param_map": {} } },
+    "SAVE_ALL_SETTINGS": { "params": { "settings": { "type": "object" } }, "mcu": { "name": "SAVE_ALL_SETTINGS", "param_map": {} } },
+    "LOAD_DEFAULT_SETTINGS": { "params": {}, "mcu": { "name": "LOAD_DEFAULT_SETTINGS", "param_map": {} } }
+  }
+}
