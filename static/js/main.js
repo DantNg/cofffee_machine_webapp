@@ -71,6 +71,7 @@ function initSocket() {
       reconnectionAttempts: 5,
       timeout: 5000
     });
+    try { window.socket = socket; } catch(_) {}
     
     console.log("Socket.IO instance created");
 
@@ -823,41 +824,61 @@ function applyEmergencySettings() {
 
 // System Settings Functions
 function applySystemSettings() {
-  const settings = {
-    logging: {
-      enabled: document.getElementById("csv-logging-enable").checked,
-      interval: parseInt(document.getElementById("log-interval").value),
-      auto_split: document.getElementById("auto-split-log").checked,
-      fields: {
-        pressure: document.getElementById("log-pressure").checked,
-        flow: document.getElementById("log-flow").checked,
-        grams: document.getElementById("log-grams").checked,
-        temperature: document.getElementById("log-temperature").checked,
-        pid: document.getElementById("log-pid").checked,
-        motor: document.getElementById("log-motor").checked
-      }
-    },
-    communication: {
-      serial_port: document.getElementById("serial-port").value,
-      baud_rate: parseInt(document.getElementById("serial-baudrate").value),
-      ws_reconnect_timeout: parseInt(document.getElementById("ws-reconnect-timeout").value)
-    }
-  };
-
-  // Send via WebSocket for live devices
-  sendCommand({ cmd: "SET_SYSTEM_SETTINGS", settings });
-  // Also persist/apply via REST to config worker
   try {
+    const getEl = (id) => document.getElementById(id);
+    const getNum = (id, fallback = null) => {
+      const el = getEl(id);
+      if (!el) return fallback;
+      const v = parseInt(el.value, 10);
+      return isNaN(v) ? fallback : v;
+    };
+    const getBool = (id, fallback = false) => {
+      const el = getEl(id);
+      return el ? !!el.checked : fallback;
+    };
+
+    const settings = {
+      logging: {
+        enabled: getBool("csv-logging-enable", true),
+        interval: getNum("log-interval", 100),
+        auto_split: getBool("auto-split-log", false),
+        fields: {
+          pressure: getBool("log-pressure", true),
+          flow: getBool("log-flow", true),
+          grams: getBool("log-grams", true),
+          temperature: getBool("log-temperature", true),
+          pid: getBool("log-pid", true),
+          motor: getBool("log-motor", true)
+        }
+      },
+      communication: {
+        // serial_port and baud_rate were removed from Settings UI; keep ws setting
+        ws_reconnect_timeout: getNum("ws-reconnect-timeout", 5)
+      }
+    };
+
+    appendLog("Applying system settings...", "info");
+    // Send via WebSocket for live devices
+    sendCommand({ cmd: "SET_SYSTEM_SETTINGS", settings });
+    // Also persist/apply via REST to config worker
     fetch('/api/config/apply', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(settings)
-    }).then(r => r.json()).then(() => {
-      appendLog(`System settings applied: Port=${settings.communication.serial_port}, Baud=${settings.communication.baud_rate}`);
-    }).catch(() => {
-      // ignore REST errors here; WS command may still succeed
-    });
-  } catch (_) {}
+    }).then(r => r.json())
+      .then((res) => {
+        if (res && res.status === 'ok') {
+          appendLog("System settings applied (WS + REST)", "info");
+        } else {
+          appendLog("System settings applied via WS (REST failed/ignored)", "warn");
+        }
+      })
+      .catch((err) => {
+        appendLog(`System settings REST apply error: ${err}`, "warn");
+      });
+  } catch (err) {
+    appendLog(`Apply System Settings error: ${err.message}`, 'error');
+  }
 }
 
 // Global Settings Actions
@@ -1010,7 +1031,8 @@ window.EspressoApp = {
   initHeaderSerialControls,
   loadAppSchema,
   getSchemaParam,
-   loadRecentSerialLogs,
+  loadRecentSerialLogs,
+  sendCommand,
   appendLog
 };
 
@@ -1172,6 +1194,8 @@ function initHeaderSerialControls() {
           // Require user to select a port before enabling Connect
           btnConnect.disabled = !portSel.value;
           appendLog(`Ports refreshed: ${list.join(', ')}`);
+          // Sync UI with current connection status
+          loadStatus();
         }
       })
       .catch(() => {
@@ -1234,5 +1258,33 @@ function initHeaderSerialControls() {
       appendLog('Requested serial disconnect via command');
     });
   });
+
+  // Initialize UI from current serial status
+  function loadStatus() {
+    fetch('/api/serial/status')
+      .then(r => r.json())
+      .then(st => {
+        const connected = !!st.connected;
+        setSerialHeaderStatus(connected);
+        if (connected) {
+          if (st.port) {
+            const opt = Array.from(portSel.options).find(o => o.value === st.port);
+            if (opt) portSel.value = st.port;
+          }
+          if (st.baud) baudSel.value = String(st.baud);
+          portSel.disabled = true;
+          baudSel.disabled = true;
+          btnConnect.disabled = true;
+          btnDisconnect.disabled = false;
+        } else {
+          portSel.disabled = false;
+          baudSel.disabled = false;
+          btnConnect.disabled = !portSel.value;
+          btnDisconnect.disabled = true;
+        }
+      })
+      .catch(() => {});
+  }
+  loadStatus();
 }
 

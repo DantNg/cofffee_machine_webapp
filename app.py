@@ -251,6 +251,16 @@ def serial_disconnect():
         return jsonify({"error": str(e)}), 500
 
 
+@app.route("/api/serial/status", methods=["GET"])
+def serial_status():
+    """Return current serial connection status for UI initialization."""
+    return jsonify({
+        "connected": bool(serial_connected),
+        "port": current_serial_port if serial_connected else None,
+        "baud": current_serial_baud if serial_connected else None,
+    })
+
+
 # -----------------------------------------------------------------------------
 # SocketIO Events
 # -----------------------------------------------------------------------------

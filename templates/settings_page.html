@@ -189,43 +189,11 @@
       <button id="apply-emergency-settings" class="settings-btn primary">Apply Emergency Settings</button>
     </section>
 
-    <!-- COM Port & Serial Monitor -->
+    <!-- Serial Command & Monitor (use header for connection) -->
     <section class="settings-section">
-      <h2>📡 COM Port & Serial Monitor</h2>
+      <h2>📡 Serial Command & Monitor</h2>
       <div class="settings-group">
-        <h3>1. COM Port Connection</h3>
-        <div class="settings-row">
-          <label for="com-port-select">COM Port:</label>
-          <select id="com-port-select">
-            <option value="">Select COM Port</option>
-          </select>
-          <button id="refresh-com-ports" class="settings-btn">Refresh Ports</button>
-        </div>
-        <div class="settings-row">
-          <label for="com-baud-rate">Baud Rate:</label>
-          <select id="com-baud-rate">
-            <option value="9600">9600</option>
-            <option value="19200">19200</option>
-            <option value="38400">38400</option>
-            <option value="57600">57600</option>
-            <option value="115200" selected>115200</option>
-            <option value="230400">230400</option>
-            <option value="460800">460800</option>
-            <option value="921600">921600</option>
-          </select>
-        </div>
-        <div class="settings-row">
-          <div class="connection-status">
-            Serial Connection: <span id="serial-connection-status" class="status-dot status-disconnected">Disconnected</span>
-          </div>
-          <div class="connection-controls">
-            <button id="connect-serial" class="settings-btn primary">Connect</button>
-            <button id="disconnect-serial" class="settings-btn danger">Disconnect</button>
-          </div>
-        </div>
-      </div>
-      <div class="settings-group">
-        <h3>2. Serial Command Interface</h3>
+        <h3>1. Serial Command Interface</h3>
         <div class="command-interface">
           <div class="command-input-group">
             <label for="manual-command">Manual Command:</label>
@@ -248,7 +216,7 @@
         </div>
       </div>
       <div class="settings-group">
-        <h3>3. Serial Monitor</h3>
+        <h3>2. Serial Monitor</h3>
         <div class="monitor-controls">
           <button id="clear-monitor" class="settings-btn">Clear</button>
           <button id="save-monitor" class="settings-btn">Save Log</button>
@@ -303,22 +271,7 @@
         </div>
       </div>
       <div class="settings-group">
-        <h3>2. WebSocket / Serial Settings</h3>
-        <div class="settings-row">
-          <label>Serial Port:</label>
-          <input type="text" id="serial-port" value="COM3" placeholder="e.g., COM3, /dev/ttyUSB0" />
-        </div>
-        <div class="settings-row">
-          <label>Baud Rate:</label>
-          <select id="serial-baudrate">
-            <option value="9600">9600</option>
-            <option value="19200">19200</option>
-            <option value="38400">38400</option>
-            <option value="57600">57600</option>
-            <option value="115200" selected>115200</option>
-            <option value="230400">230400</option>
-          </select>
-        </div>
+        <h3>2. WebSocket</h3>
         <div class="settings-row">
           <label>WebSocket Reconnect Timeout:</label>
           <input type="number" id="ws-reconnect-timeout" min="1" max="60" value="5" />

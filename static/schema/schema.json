@@ -43,7 +43,8 @@
     "SET_EMERGENCY_SETTINGS": "SET_EMERGENCY_SETTINGS",
     "SET_SYSTEM_SETTINGS": "SET_SYSTEM_SETTINGS",
     "SAVE_ALL_SETTINGS": "SAVE_ALL_SETTINGS",
-    "LOAD_DEFAULT_SETTINGS": "LOAD_DEFAULT_SETTINGS"
+    "LOAD_DEFAULT_SETTINGS": "LOAD_DEFAULT_SETTINGS",
+    "GET_STATUS": "GET_STATUS"
   },
   "commands": {
     "SEND_PULSES": {
@@ -102,6 +103,7 @@
     "SET_EMERGENCY_SETTINGS": { "params": { "settings": { "type": "object" } }, "mcu": { "name": "SET_EMERGENCY_SETTINGS", "param_map": {} } },
     "SET_SYSTEM_SETTINGS": { "params": { "settings": { "type": "object" } }, "mcu": { "name": "SET_SYSTEM_SETTINGS", "param_map": {} } },
     "SAVE_ALL_SETTINGS": { "params": { "settings": { "type": "object" } }, "mcu": { "name": "SAVE_ALL_SETTINGS", "param_map": {} } },
-    "LOAD_DEFAULT_SETTINGS": { "params": {}, "mcu": { "name": "LOAD_DEFAULT_SETTINGS", "param_map": {} } }
+    "LOAD_DEFAULT_SETTINGS": { "params": {}, "mcu": { "name": "LOAD_DEFAULT_SETTINGS", "param_map": {} } },
+    "GET_STATUS": { "params": {}, "mcu": { "name": "GET_STATUS", "param_map": {} } }
   }
 }
