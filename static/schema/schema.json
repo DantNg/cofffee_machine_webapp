@@ -28,7 +28,7 @@
     ]
   },
   "aliases": {
-    "SEND_PULSES": "SEND_PULSES1",
+    "SEND_PULSES": "SEND_PULSES",
     "STOP_MOTOR": "STOP_MOTOR",
     "VALVE_SET": "VALVE_SET",
     "RESET_COUNTERS": "RESET_COUNTERS",
