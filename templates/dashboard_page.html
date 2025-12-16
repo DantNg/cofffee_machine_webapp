@@ -137,28 +137,33 @@
     <section class="panel" id="camera-panel">
       <h2>Camera Feed</h2>
       <div class="camera-controls">
-        <div class="camera-source-group">
-          <label for="camera-source">Source:</label>
-          <select id="camera-source">
-            <option value="none">No Camera</option>
-            <option value="local">Local Camera</option>
-            <option value="ip">IP Camera</option>
-          </select>
-        </div>
-        <div class="camera-config" id="local-config" style="display: none;">
-          <label for="local-camera-select">Device:</label>
-          <select id="local-camera-select">
-            <option value="">Select Camera</option>
-          </select>
-        </div>
-        <div class="camera-config" id="ip-config" style="display: none;">
-          <label for="ip-camera-url">IP Camera URL:</label>
-          <input id="ip-camera-url" type="text" placeholder="http://192.168.1.100:8080/video">
-        </div>
-        <div class="camera-actions">
-          <button id="start-camera">Start</button>
-          <button id="stop-camera">Stop</button>
-          <button id="snapshot-camera">Snapshot</button>
+        <div class="camera-control-card">
+          <div class="camera-field-group">
+            <label for="camera-source" class="camera-label">Source</label>
+            <select id="camera-source" class="camera-select">
+              <option value="none">No Camera</option>
+              <option value="local">Local Camera</option>
+              <option value="ip">IP Camera</option>
+            </select>
+          </div>
+          <div class="camera-field-group" id="local-config" style="display: none;">
+            <label for="local-camera-select" class="camera-label">Device</label>
+            <div class="camera-input-row">
+              <select id="local-camera-select" class="camera-select">
+                <option value="">Select Camera</option>
+              </select>
+              <button id="refresh-local-cams" class="icon-btn" title="Refresh cameras" aria-label="Refresh cameras">⟳</button>
+            </div>
+          </div>
+          <div class="camera-field-group" id="ip-config" style="display: none;">
+            <label for="ip-camera-url" class="camera-label">IP Camera URL</label>
+            <input id="ip-camera-url" class="camera-input" type="text" placeholder="http://192.168.1.100:8080/video">
+          </div>
+          <div class="camera-actions">
+            <button id="start-camera" class="primary">Start</button>
+            <button id="stop-camera" class="danger ghost">Stop</button>
+            <button id="snapshot-camera">Snapshot</button>
+          </div>
         </div>
       </div>
       <div class="camera-view">
